@@ -1,5 +1,313 @@
 .. currentmodule:: werkzeug
 
+Version 3.0.3
+-------------
+
+Released 2024-05-05
+
+-   Only allow ``localhost``, ``.localhost``, ``127.0.0.1``, or the specified
+    hostname when running the dev server, to make debugger requests. Additional
+    hosts can be added by using the debugger middleware directly. The debugger
+    UI makes requests using the full URL rather than only the path.
+    :ghsa:`2g68-c3qc-8985`
+-   Make reloader more robust when ``""`` is in ``sys.path``. :pr:`2823`
+-   Better TLS cert format with ``adhoc`` dev certs. :pr:`2891`
+-   Inform Python < 3.12 how to handle ``itms-services`` URIs correctly, rather
+    than using an overly-broad workaround in Werkzeug that caused some redirect
+    URIs to be passed on without encoding. :issue:`2828`
+-   Type annotation for ``Rule.endpoint`` and other uses of ``endpoint`` is
+    ``Any``. :issue:`2836`
+
+
+Version 3.0.2
+-------------
+
+Released 2024-04-01
+
+-   Ensure setting ``merge_slashes`` to ``False`` results in ``NotFound`` for
+    repeated-slash requests against single slash routes. :issue:`2834`
+-   Fix handling of ``TypeError`` in ``TypeConversionDict.get()`` to match
+    ``ValueError``. :issue:`2843`
+-   Fix ``response_wrapper`` type check in test client. :issue:`2831`
+-   Make the return type of ``MultiPartParser.parse`` more precise.
+    :issue:`2840`
+-   Raise an error if converter arguments cannot be parsed. :issue:`2822`
+
+
+Version 3.0.1
+-------------
+
+Released 2023-10-24
+
+-   Fix slow multipart parsing for large parts potentially enabling DoS attacks.
+
+
+Version 3.0.0
+-------------
+
+Released 2023-09-30
+
+-   Remove previously deprecated code. :pr:`2768`
+-   Deprecate the ``__version__`` attribute. Use feature detection, or
+    ``importlib.metadata.version("werkzeug")``, instead. :issue:`2770`
+-   ``generate_password_hash`` uses scrypt by default. :issue:`2769`
+-   Add the ``"werkzeug.profiler"`` item to the  WSGI ``environ`` dictionary
+    passed to `ProfilerMiddleware`'s `filename_format` function. It contains
+    the ``elapsed`` and ``time`` values for the profiled request. :issue:`2775`
+-   Explicitly marked the PathConverter as non path isolating. :pr:`2784`
+
+
+Version 2.3.8
+-------------
+
+Released 2023-11-08
+
+-   Fix slow multipart parsing for large parts potentially enabling DoS
+    attacks.
+
+
+Version 2.3.7
+-------------
+
+Released 2023-08-14
+
+-   Use ``flit_core`` instead of ``setuptools`` as build backend.
+-   Fix parsing of multipart bodies. :issue:`2734`
+-   Adjust index of last newline in data start. :issue:`2761`
+-   Parsing ints from header values strips spacing first. :issue:`2734`
+-   Fix empty file streaming when testing. :issue:`2740`
+-   Clearer error message when URL rule does not start with slash. :pr:`2750`
+-   ``Accept`` ``q`` value can be a float without a decimal part. :issue:`2751`
+
+
+Version 2.3.6
+-------------
+
+Released 2023-06-08
+
+-   ``FileStorage.content_length`` does not fail if the form data did not provide a
+    value. :issue:`2726`
+
+
+Version 2.3.5
+-------------
+
+Released 2023-06-07
+
+-   Python 3.12 compatibility. :issue:`2704`
+-   Fix handling of invalid base64 values in ``Authorization.from_header``. :issue:`2717`
+-   The debugger escapes the exception message in the page title. :pr:`2719`
+-   When binding ``routing.Map``, a long IDNA ``server_name`` with a port does not fail
+    encoding. :issue:`2700`
+-   ``iri_to_uri`` shows a deprecation warning instead of an error when passing bytes.
+    :issue:`2708`
+-   When parsing numbers in HTTP request headers such as ``Content-Length``, only ASCII
+    digits are accepted rather than any format that Python's ``int`` and ``float``
+    accept. :issue:`2716`
+
+
+Version 2.3.4
+-------------
+
+Released 2023-05-08
+
+-   ``Authorization.from_header`` and ``WWWAuthenticate.from_header`` detects tokens
+    that end with base64 padding (``=``). :issue:`2685`
+-   Remove usage of ``warnings.catch_warnings``. :issue:`2690`
+-   Remove ``max_form_parts`` restriction from standard form data parsing and only use
+    if for multipart content. :pr:`2694`
+-   ``Response`` will avoid converting the ``Location`` header in some cases to preserve
+    invalid URL schemes like ``itms-services``. :issue:`2691`
+
+
+Version 2.3.3
+-------------
+
+Released 2023-05-01
+
+-   Fix parsing of large multipart bodies. Remove invalid leading newline, and restore
+    parsing speed. :issue:`2658, 2675`
+-   The cookie ``Path`` attribute is set to ``/`` by default again, to prevent clients
+    from falling back to RFC 6265's ``default-path`` behavior. :issue:`2672, 2679`
+
+
+Version 2.3.2
+-------------
+
+Released 2023-04-28
+
+-   Parse the cookie ``Expires`` attribute correctly in the test client. :issue:`2669`
+-   ``max_content_length`` can only be enforced on streaming requests if the server
+    sets ``wsgi.input_terminated``. :issue:`2668`
+
+
+Version 2.3.1
+-------------
+
+Released 2023-04-27
+
+-   Percent-encode plus (+) when building URLs and in test requests. :issue:`2657`
+-   Cookie values don't quote characters defined in RFC 6265. :issue:`2659`
+-   Include ``pyi`` files for ``datastructures`` type annotations. :issue:`2660`
+-   ``Authorization`` and ``WWWAuthenticate`` objects can be compared for equality.
+    :issue:`2665`
+
+
+Version 2.3.0
+-------------
+
+Released 2023-04-25
+
+-   Drop support for Python 3.7. :pr:`2648`
+-   Remove previously deprecated code. :pr:`2592`
+-   Passing bytes where strings are expected is deprecated, as well as the ``charset``
+    and ``errors`` parameters in many places. Anywhere that was annotated, documented,
+    or tested to accept bytes shows a warning. Removing this artifact of the transition
+    from Python 2 to 3 removes a significant amount of overhead in instance checks and
+    encoding cycles. In general, always work with UTF-8, the modern HTML, URL, and HTTP
+    standards all strongly recommend this. :issue:`2602`
+-   Deprecate the ``werkzeug.urls`` module, except for the ``uri_to_iri`` and
+    ``iri_to_uri`` functions. Use the ``urllib.parse`` library instead. :issue:`2600`
+-   Update which characters are considered safe when using percent encoding in URLs,
+    based on the WhatWG URL Standard. :issue:`2601`
+-   Update which characters are considered safe when using percent encoding for Unicode
+    filenames in downloads. :issue:`2598`
+-   Deprecate the ``safe_conversion`` parameter of ``iri_to_uri``. The ``Location``
+    header is converted to IRI using the same process as everywhere else. :issue:`2609`
+-   Deprecate ``werkzeug.wsgi.make_line_iter`` and ``make_chunk_iter``. :pr:`2613`
+-   Use modern packaging metadata with ``pyproject.toml`` instead of ``setup.cfg``.
+    :pr:`2574`
+-   ``Request.get_json()`` will raise a ``415 Unsupported Media Type`` error if the
+    ``Content-Type`` header is not ``application/json``, instead of a generic 400.
+    :issue:`2550`
+-   A URL converter's ``part_isolating`` defaults to ``False`` if its ``regex`` contains
+    a ``/``. :issue:`2582`
+-   A custom converter's regex can have capturing groups without breaking the router.
+    :pr:`2596`
+-   The reloader can pick up arguments to ``python`` like ``-X dev``, and does not
+    require heuristics to determine how to reload the command. Only available
+    on Python >= 3.10. :issue:`2589`
+-   The Watchdog reloader ignores file opened events. Bump the minimum version of
+    Watchdog to 2.3.0. :issue:`2603`
+-   When using a Unix socket for the development server, the path can start with a dot.
+    :issue:`2595`
+-   Increase default work factor for PBKDF2 to 600,000 iterations. :issue:`2611`
+-   ``parse_options_header`` is 2-3 times faster. It conforms to :rfc:`9110`, some
+    invalid parts that were previously accepted are now ignored. :issue:`1628`
+-   The ``is_filename`` parameter to ``unquote_header_value`` is deprecated. :pr:`2614`
+-   Deprecate the ``extra_chars`` parameter and passing bytes to ``quote_header_value``,
+    the ``allow_token`` parameter to ``dump_header``, and the ``cls`` parameter and
+    passing bytes to ``parse_dict_header``. :pr:`2618`
+-   Improve ``parse_accept_header`` implementation. Parse according to :rfc:`9110`.
+    Discard items with invalid ``q`` values. :issue:`1623`
+-   ``quote_header_value`` quotes the empty string. :pr:`2618`
+-   ``dump_options_header`` skips ``None`` values rather than using a bare key.
+    :pr:`2618`
+-   ``dump_header`` and ``dump_options_header`` will not quote a value if the key ends
+    with an asterisk ``*``.
+-   ``parse_dict_header`` will decode values with charsets. :pr:`2618`
+-   Refactor the ``Authorization`` and ``WWWAuthenticate`` header data structures.
+    :issue:`1769`, :pr:`2619`
+
+    -   Both classes have ``type``, ``parameters``, and ``token`` attributes. The
+        ``token`` attribute supports auth schemes that use a single opaque token rather
+        than ``key=value`` parameters, such as ``Bearer``.
+    -   Neither class is a ``dict`` anymore, although they still implement getting,
+        setting, and deleting ``auth[key]`` and ``auth.key`` syntax, as well as
+        ``auth.get(key)`` and ``key in auth``.
+    -   Both classes have a ``from_header`` class method. ``parse_authorization_header``
+        and ``parse_www_authenticate_header`` are deprecated.
+    -   The methods ``WWWAuthenticate.set_basic`` and ``set_digest`` are deprecated.
+        Instead, an instance should be created and assigned to
+        ``response.www_authenticate``.
+    -   A list of instances can be assigned to ``response.www_authenticate`` to set
+        multiple header values. However, accessing the property only returns the first
+        instance.
+
+-   Refactor ``parse_cookie`` and ``dump_cookie``. :pr:`2637`
+
+    -   ``parse_cookie`` is up to 40% faster, ``dump_cookie`` is up to 60% faster.
+    -   Passing bytes to ``parse_cookie`` and ``dump_cookie`` is deprecated. The
+        ``dump_cookie`` ``charset`` parameter is deprecated.
+    -   ``dump_cookie`` allows ``domain`` values that do not include a dot ``.``, and
+        strips off a leading dot.
+    -   ``dump_cookie`` does not set ``path="/"`` unnecessarily by default.
+
+-   Refactor the test client cookie implementation. :issue:`1060, 1680`
+
+    -   The ``cookie_jar`` attribute is deprecated. ``http.cookiejar`` is no longer used
+        for storage.
+    -   Domain and path matching is used when sending cookies in requests. The
+        ``domain`` and ``path`` parameters default to ``localhost`` and ``/``.
+    -   Added a ``get_cookie`` method to inspect cookies.
+    -   Cookies have ``decoded_key`` and ``decoded_value`` attributes to match what the
+        app sees rather than the encoded values a client would see.
+    -   The first positional ``server_name`` parameter to ``set_cookie`` and
+        ``delete_cookie`` is deprecated. Use the ``domain`` parameter instead.
+    -   Other parameters to ``delete_cookie`` besides ``domain``, ``path``, and
+        ``value`` are deprecated.
+
+-   If ``request.max_content_length`` is set, it is checked immediately when accessing
+    the stream, and while reading from the stream in general, rather than only during
+    form parsing. :issue:`1513`
+-   The development server, which must not be used in production, will exhaust the
+    request stream up to 10GB or 1000 reads. This allows clients to see a 413 error if
+    ``max_content_length`` is exceeded, instead of a "connection reset" failure.
+    :pr:`2620`
+-   The development server discards header keys that contain underscores ``_``, as they
+    are ambiguous with dashes ``-`` in WSGI. :pr:`2622`
+-   ``secure_filename`` looks for more Windows reserved file names. :pr:`2623`
+-   Update type annotation for ``best_match`` to make ``default`` parameter clearer.
+    :issue:`2625`
+-   Multipart parser handles empty fields correctly. :issue:`2632`
+-   The ``Map`` ``charset`` parameter and ``Request.url_charset`` property are
+    deprecated. Percent encoding in URLs must always represent UTF-8 bytes. Invalid
+    bytes are left percent encoded rather than replaced. :issue:`2602`
+-   The ``Request.charset``, ``Request.encoding_errors``, ``Response.charset``, and
+    ``Client.charset`` attributes are deprecated. Request and response data must always
+    use UTF-8. :issue:`2602`
+-   Header values that have charset information only allow ASCII, UTF-8, and ISO-8859-1.
+    :pr:`2614, 2641`
+-   Update type annotation for ``ProfilerMiddleware`` ``stream`` parameter.
+    :issue:`2642`
+-   Use postponed evaluation of annotations. :pr:`2644`
+-   The development server escapes ASCII control characters in decoded URLs before
+    logging the request to the terminal. :pr:`2652`
+-   The ``FormDataParser`` ``parse_functions`` attribute and ``get_parse_func`` method,
+    and the invalid ``application/x-url-encoded`` content type, are deprecated.
+    :pr:`2653`
+-   ``generate_password_hash`` supports scrypt. Plain hash methods are deprecated, only
+    scrypt and pbkdf2 are supported. :issue:`2654`
+
+
+Version 2.2.3
+-------------
+
+Released 2023-02-14
+
+-   Ensure that URL rules using path converters will redirect with strict slashes when
+    the trailing slash is missing. :issue:`2533`
+-   Type signature for ``get_json`` specifies that return type is not optional when
+    ``silent=False``. :issue:`2508`
+-   ``parse_content_range_header`` returns ``None`` for a value like ``bytes */-1``
+    where the length is invalid, instead of raising an ``AssertionError``. :issue:`2531`
+-   Address remaining ``ResourceWarning`` related to the socket used by ``run_simple``.
+    Remove ``prepare_socket``, which now happens when creating the server. :issue:`2421`
+-   Update pre-existing headers for ``multipart/form-data`` requests with the test
+    client. :issue:`2549`
+-   Fix handling of header extended parameters such that they are no longer quoted.
+    :issue:`2529`
+-   ``LimitedStream.read`` works correctly when wrapping a stream that may not return
+    the requested size in one ``read`` call. :issue:`2558`
+-   A cookie header that starts with ``=`` is treated as an empty key and discarded,
+    rather than stripping the leading ``==``.
+-   Specify a maximum number of multipart parts, default 1000, after which a
+    ``RequestEntityTooLarge`` exception is raised on parsing. This mitigates a DoS
+    attack where a larger number of form/file parts would result in disproportionate
+    resource use.
+
+
+
 Version 2.2.2
 -------------
 
@@ -21,6 +329,7 @@ Released 2022-08-08
     to fail. :issue:`2485`
 -   Address one ``ResourceWarning`` related to the socket used by
     ``run_simple``. :issue:`2421`
+
 
 
 Version 2.2.1
@@ -54,8 +363,9 @@ Released 2022-07-23
     debug console. :pr:`2439`
 -   Fix compatibility with Python 3.11 by ensuring that ``end_lineno``
     and ``end_col_offset`` are present on AST nodes. :issue:`2425`
--   Add a new faster matching router based on a state
-    machine. :pr:`2433`
+-   Add a new faster URL matching router based on a state machine. If a custom converter
+    needs to match a ``/`` it must set the class variable ``part_isolating = False``.
+    :pr:`2433`
 -   Fix branch leaf path masking branch paths when strict-slashes is
     disabled. :issue:`1074`
 -   Names within options headers are always converted to lowercase. This
@@ -775,7 +1085,7 @@ Released 2019-03-19
     (:pr:`1358`)
 -   :func:`http.parse_cookie` ignores empty segments rather than
     producing a cookie with no key or value. (:issue:`1245`, :pr:`1301`)
--   :func:`~http.parse_authorization_header` (and
+-   ``http.parse_authorization_header`` (and
     :class:`~datastructures.Authorization`,
     :attr:`~wrappers.Request.authorization`) treats the authorization
     header as UTF-8. On Python 2, basic auth username and password are
@@ -1540,8 +1850,8 @@ Version 0.9.2
 
 (bugfix release, released on July 18th 2013)
 
-- Added `unsafe` parameter to :func:`~werkzeug.urls.url_quote`.
-- Fixed an issue with :func:`~werkzeug.urls.url_quote_plus` not quoting
+- Added ``unsafe`` parameter to ``urls.url_quote``.
+- Fixed an issue with ``urls.url_quote_plus`` not quoting
   `'+'` correctly.
 - Ported remaining parts of :class:`~werkzeug.contrib.RedisCache` to
   Python 3.3.
@@ -1590,9 +1900,8 @@ Released on June 13nd 2013, codename Planierraupe.
   certificates easily and load them from files.
 - Refactored test client to invoke the open method on the class
   for redirects.  This makes subclassing more powerful.
-- :func:`werkzeug.wsgi.make_chunk_iter` and
-  :func:`werkzeug.wsgi.make_line_iter` now support processing of
-  iterators and streams.
+- ``wsgi.make_chunk_iter`` and ``make_line_iter`` now support processing
+  of iterators and streams.
 - URL generation by the routing system now no longer quotes
   ``+``.
 - URL fixing now no longer quotes certain reserved characters.
@@ -1690,7 +1999,7 @@ Version 0.8.3
 
 (bugfix release, released on February 5th 2012)
 
-- Fixed another issue with :func:`werkzeug.wsgi.make_line_iter`
+- Fixed another issue with ``wsgi.make_line_iter``
   where lines longer than the buffer size were not handled
   properly.
 - Restore stdout after debug console finished executing so
@@ -1758,7 +2067,7 @@ Released on September 29th 2011, codename Lötkolben
 - Werkzeug now uses a new method to check that the length of incoming
   data is complete and will raise IO errors by itself if the server
   fails to do so.
-- :func:`~werkzeug.wsgi.make_line_iter` now requires a limit that is
+- ``wsgi.make_line_iter`` now requires a limit that is
   not higher than the length the stream can provide.
 - Refactored form parsing into a form parser class that makes it possible
   to hook into individual parts of the parsing process for debugging and
@@ -1958,7 +2267,7 @@ Released on Feb 19th 2010, codename Hammer.
 - the form data parser will now look at the filename instead the
   content type to figure out if it should treat the upload as regular
   form data or file upload.  This fixes a bug with Google Chrome.
-- improved performance of `make_line_iter` and the multipart parser
+- improved performance of ``make_line_iter`` and the multipart parser
   for binary uploads.
 - fixed :attr:`~werkzeug.BaseResponse.is_streamed`
 - fixed a path quoting bug in `EnvironBuilder` that caused PATH_INFO and
@@ -2087,7 +2396,7 @@ Released on April 24th, codename Schlagbohrer.
 - added :mod:`werkzeug.contrib.lint`
 - added `passthrough_errors` to `run_simple`.
 - added `secure_filename`
-- added :func:`make_line_iter`
+- added ``make_line_iter``
 - :class:`MultiDict` copies now instead of revealing internal
   lists to the caller for `getlist` and iteration functions that
   return lists.

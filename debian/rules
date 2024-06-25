@@ -1,23 +1,26 @@
 #!/usr/bin/make -f
+# -*- makefile -*-
 
-# Copyright 2009, Noah Slater <nslater@tumbolia.org>
+#export DH_VERBOSE = 1
 
-# Copying and distribution of this file, with or without modification, are
-# permitted in any medium without royalty provided the copyright notice and this
-# notice are preserved.
+include /usr/share/dpkg/pkg-info.mk
+
+BUILD_DATE  = $(shell LC_ALL=C date -u "+%d %B %Y" -d "@$(SOURCE_DATE_EPOCH)")
+SPHINXOPTS := -E -N -D html_last_updated_fmt="$(BUILD_DATE)"
 
 export PYBUILD_NAME=werkzeug
 export PYBUILD_TEST_PYTEST=1
+export PYBUILD_BEFORE_INSTALL=rm -rf {build_dir}/werkzeug/debug/shared/ICON_LICENSE.md
 
 %:
-	dh $@ --with python3,sphinxdoc --buildsystem pybuild
+	dh $@ --buildsystem=pybuild
 
 override_dh_auto_clean:
 	make -C docs clean
 	rm -rf build Werkzeug.egg-info/
 	#find $(CURDIR) \( -name '\._*' -o -name '\.DS_Store' \) -delete
 	find . -iname '__pycache__' -exec rm -rf {} \; || true
-	rm -rf .pytest_cache
+	rm -rf .pytest_cache .mypy_cache debian/doctrees
 	dh_auto_clean
 
 override_dh_fixperms:
@@ -32,7 +35,8 @@ override_dh_installexamples:
 	dh_installexamples --doc-main-package=python-werkzeug-doc -ppython-werkzeug-doc
 
 override_dh_sphinxdoc:
-ifeq (,$(findstring nodocs, $(DEB_BUILD_OPTIONS)))
-	PYTHONPATH=src python3 -m sphinx -b html docs/ debian/python-werkzeug-doc/usr/share/doc/python-werkzeug-doc/html/
+ifeq (,$(findstring nodoc, $(DEB_BUILD_OPTIONS)))
+	PYTHONPATH=`dirname $$(find .pybuild/ -type d -name "werkzeug*dist-info" | head -n1)` \
+	    python3 -m sphinx -b html docs/ -d debian/doctrees $(SPHINXOPTS) debian/python-werkzeug-doc/usr/share/doc/python-werkzeug-doc/html/
 	dh_sphinxdoc
 endif

@@ -2,13 +2,20 @@
 set -eu
 
 export LC_ALL=C.UTF-8
-pyvers=$(py3versions -r 2>/dev/null)
 
 cp -a tests "$AUTOPKGTEST_TMP"
 cd "$AUTOPKGTEST_TMP"
 
-for py in ${pyvers}; do
-  echo "-=-=-=-=-=-=-=- running tests for ${py} -=-=-=-=-=-=-=-=-"
-  printf '$ %s\n' "${py} -m pytest tests"
-  ${py} -m pytest tests
+for py3vers in $(py3versions -s); do
+    echo
+    echo "***************************"
+    echo "*** Testing with ${py3vers}"
+    echo "***************************"
+    echo
+    cd ${AUTOPKGTEST_TMP} && \
+        echo "Content of current working folder:\n" && \
+        ls -la && \
+        echo "Running tests...\n" && \
+        PYTHONPATH=. ${py3vers} -m pytest && \
+        rm -rf .pytest_cache || exit 1
 done

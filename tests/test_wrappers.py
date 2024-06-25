@@ -20,9 +20,11 @@ from werkzeug.datastructures import ImmutableOrderedMultiDict
 from werkzeug.datastructures import LanguageAccept
 from werkzeug.datastructures import MIMEAccept
 from werkzeug.datastructures import MultiDict
+from werkzeug.datastructures import WWWAuthenticate
 from werkzeug.exceptions import BadRequest
 from werkzeug.exceptions import RequestedRangeNotSatisfiable
 from werkzeug.exceptions import SecurityError
+from werkzeug.exceptions import UnsupportedMediaType
 from werkzeug.http import COEP
 from werkzeug.http import COOP
 from werkzeug.http import generate_etag
@@ -136,11 +138,12 @@ def test_url_request_descriptors():
 
 
 def test_url_request_descriptors_query_quoting():
-    next = "http%3A%2F%2Fwww.example.com%2F%3Fnext%3D%2Fbaz%23my%3Dhash"
-    req = wrappers.Request.from_values(f"/bar?next={next}", "http://example.com/")
+    quoted = "http%3A%2F%2Fwww.example.com%2F%3Fnext%3D%2Fbaz%23my%3Dhash"
+    unquoted = "http://www.example.com/?next%3D/baz%23my%3Dhash"
+    req = wrappers.Request.from_values(f"/bar?next={quoted}", "http://example.com/")
     assert req.path == "/bar"
-    assert req.full_path == f"/bar?next={next}"
-    assert req.url == f"http://example.com/bar?next={next}"
+    assert req.full_path == f"/bar?next={quoted}"
+    assert req.url == f"http://example.com/bar?next={unquoted}"
 
 
 def test_url_request_descriptors_hosts():
@@ -347,13 +350,6 @@ def test_response_init_status_empty_string():
         wrappers.Response(None, "")
 
     assert "Empty status argument" in str(info.value)
-
-
-def test_response_init_status_tuple():
-    with pytest.raises(TypeError) as info:
-        wrappers.Response(None, tuple())
-
-    assert "Invalid status argument" in str(info.value)
 
 
 def test_type_forcing():
@@ -686,27 +682,26 @@ def test_etag_response_freezing():
 
 def test_authenticate():
     resp = wrappers.Response()
-    resp.www_authenticate.type = "basic"
     resp.www_authenticate.realm = "Testing"
-    assert resp.headers["WWW-Authenticate"] == 'Basic realm="Testing"'
-    resp.www_authenticate.realm = None
-    resp.www_authenticate.type = None
+    assert resp.headers["WWW-Authenticate"] == "Basic realm=Testing"
+    del resp.www_authenticate
     assert "WWW-Authenticate" not in resp.headers
 
 
 def test_authenticate_quoted_qop():
     # Example taken from https://github.com/pallets/werkzeug/issues/633
     resp = wrappers.Response()
-    resp.www_authenticate.set_digest("REALM", "NONCE", qop=("auth", "auth-int"))
+    resp.www_authenticate = WWWAuthenticate(
+        "digest", {"realm": "REALM", "nonce": "NONCE", "qop": "auth, auth-int"}
+    )
 
-    actual = set(f"{resp.headers['WWW-Authenticate']},".split())
-    expected = set('Digest nonce="NONCE", realm="REALM", qop="auth, auth-int",'.split())
+    actual = resp.headers["WWW-Authenticate"]
+    expected = 'Digest realm="REALM", nonce="NONCE", qop="auth, auth-int"'
     assert actual == expected
 
-    resp.www_authenticate.set_digest("REALM", "NONCE", qop=("auth",))
-
-    actual = set(f"{resp.headers['WWW-Authenticate']},".split())
-    expected = set('Digest nonce="NONCE", realm="REALM", qop="auth",'.split())
+    resp.www_authenticate.parameters["qop"] = "auth"
+    actual = resp.headers["WWW-Authenticate"]
+    expected = 'Digest realm="REALM", nonce="NONCE", qop="auth"'
     assert actual == expected
 
 
@@ -873,12 +868,6 @@ def test_file_closing_with():
         assert foo.filename == "foo.txt"
 
     assert foo.closed is True
-
-
-def test_url_charset_reflection():
-    req = wrappers.Request.from_values()
-    req.charset = "utf-7"
-    assert req.url_charset == "utf-7"
 
 
 def test_response_streamed():
@@ -1048,25 +1037,25 @@ def test_storage_classes():
         parameter_storage_class = dict
 
     req = MyRequest.from_values("/?foo=baz", headers={"Cookie": "foo=bar"})
-    assert type(req.cookies) is dict
+    assert type(req.cookies) is dict  # noqa: E721
     assert req.cookies == {"foo": "bar"}
-    assert type(req.access_route) is list
+    assert type(req.access_route) is list  # noqa: E721
 
-    assert type(req.args) is dict
-    assert type(req.values) is CombinedMultiDict
+    assert type(req.args) is dict  # noqa: E721
+    assert type(req.values) is CombinedMultiDict  # noqa: E721
     assert req.values["foo"] == "baz"
 
     req = wrappers.Request.from_values(headers={"Cookie": "foo=bar;foo=baz"})
-    assert type(req.cookies) is ImmutableMultiDict
+    assert type(req.cookies) is ImmutableMultiDict  # noqa: E721
     assert req.cookies.to_dict() == {"foo": "bar"}
 
     # it is possible to have multiple cookies with the same name
     assert req.cookies.getlist("foo") == ["bar", "baz"]
-    assert type(req.access_route) is ImmutableList
+    assert type(req.access_route) is ImmutableList  # noqa: E721
 
     MyRequest.list_storage_class = tuple
     req = MyRequest.from_values()
-    assert type(req.access_route) is tuple
+    assert type(req.access_route) is tuple  # noqa: E721
 
 
 def test_response_headers_passthrough():
@@ -1165,6 +1154,7 @@ def test_disabled_auto_content_length():
     ("auto", "location", "expect"),
     (
         (False, "/test", "/test"),
+        (False, "/\\\\test.example?q", "/%5C%5Ctest.example?q"),
         (True, "/test", "http://localhost/test"),
         (True, "test", "http://localhost/a/b/test"),
         (True, "./test", "http://localhost/a/b/test"),
@@ -1204,14 +1194,6 @@ def test_malformed_204_response_has_no_content_length():
     assert status == "204 NO CONTENT"
     assert "Content-Length" not in headers
     assert b"".join(app_iter) == b""  # ensure data will not be sent
-
-
-def test_modified_url_encoding():
-    class ModifiedRequest(wrappers.Request):
-        url_charset = "euc-kr"
-
-    req = ModifiedRequest.from_values(query_string={"foo": "정상처리"}, charset="euc-kr")
-    assert req.args["foo"] == "정상처리"
 
 
 def test_request_method_case_sensitivity():
@@ -1350,7 +1332,7 @@ class TestJSON:
         value = [1, 2, 3]
         request = wrappers.Request.from_values(json=value, content_type="text/plain")
 
-        with pytest.raises(BadRequest):
+        with pytest.raises(UnsupportedMediaType):
             request.get_json()
 
         assert request.get_json(silent=True) is None

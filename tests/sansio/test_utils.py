@@ -1,7 +1,8 @@
-import typing as t
+from __future__ import annotations
 
 import pytest
 
+from werkzeug.sansio.utils import get_content_length
 from werkzeug.sansio.utils import get_host
 
 
@@ -25,8 +26,28 @@ from werkzeug.sansio.utils import get_host
 )
 def test_get_host(
     scheme: str,
-    host_header: t.Optional[str],
-    server: t.Optional[t.Tuple[str, t.Optional[int]]],
+    host_header: str | None,
+    server: tuple[str, int | None] | None,
     expected: str,
 ) -> None:
     assert get_host(scheme, host_header, server) == expected
+
+
+@pytest.mark.parametrize(
+    ("http_content_length", "http_transfer_encoding", "expected"),
+    [
+        ("2", None, 2),
+        (" 2", None, 2),
+        ("2 ", None, 2),
+        (None, None, None),
+        (None, "chunked", None),
+        ("a", None, 0),
+        ("-2", None, 0),
+    ],
+)
+def test_get_content_length(
+    http_content_length: str | None,
+    http_transfer_encoding: str | None,
+    expected: int | None,
+) -> None:
+    assert get_content_length(http_content_length, http_transfer_encoding) == expected

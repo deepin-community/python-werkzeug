@@ -1,5 +1,12 @@
 Tests: upstream
 Depends:
+ python3-all,
+ python3-cryptography,
+ python3-ephemeral-port-reserve,
+ python3-greenlet,
+ python3-pytest,
+ python3-pytest-timeout,
+ python3-pytest-xprocess,
+ python3-watchdog,
  @,
- @builddeps@,
 Restrictions: allow-stderr
