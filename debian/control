@@ -4,26 +4,27 @@ Priority: optional
 Maintainer: Debian Python Team <team+python@tracker.debian.org>
 Uploaders:
  Thomas Goirand <zigo@debian.org>,
- Ondřej Nový <onovy@debian.org>,
-Standards-Version: 4.6.1
+Standards-Version: 4.7.0
 Build-Depends:
  debhelper-compat (= 13),
- dh-python,
+ dh-sequence-python3,
+ dh-sequence-sphinxdoc,
+ flit,
+ pybuild-plugin-pyproject,
  python3-all,
  python3-cryptography <!nocheck>,
- python3-doc,
+ python3-doc <!nodoc>,
  python3-ephemeral-port-reserve <!nocheck>,
  python3-greenlet <!nocheck>,
+ python3-markupsafe,
  python3-pallets-sphinx-themes <!nodoc>,
  python3-pytest <!nocheck>,
  python3-pytest-timeout <!nocheck>,
  python3-pytest-xprocess <!nocheck>,
- python3-setuptools,
  python3-sphinx <!nodoc>,
- python3-sphinx-issues <!nodoc>,
  python3-sphinxcontrib-log-cabinet <!nodoc>,
  python3-watchdog <!nocheck>,
-Homepage: http://werkzeug.pocoo.org/
+Homepage: https://github.com/pallets/werkzeug/
 Vcs-Git: https://salsa.debian.org/python-team/packages/python-werkzeug.git
 Vcs-Browser: https://salsa.debian.org/python-team/packages/python-werkzeug
 Testsuite: autopkgtest-pkg-python

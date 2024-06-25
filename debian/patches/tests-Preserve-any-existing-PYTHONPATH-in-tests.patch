@@ -1,17 +1,17 @@
-From b88042cfb32866a00d39b678bb224eb55ecf53c1 Mon Sep 17 00:00:00 2001
 From: Lumir Balhar <lbalhar@redhat.com>
 Date: Tue, 22 Jun 2021 22:10:17 +0200
-Subject: [PATCH] Preserve any existing PYTHONPATH in tests
+Subject: tests: Preserve any existing PYTHONPATH in tests
 
+Forwarded: not-needed
 ---
  tests/conftest.py | 10 ++++++++--
  1 file changed, 8 insertions(+), 2 deletions(-)
 
 diff --git a/tests/conftest.py b/tests/conftest.py
-index 4ad1ff23..7200d286 100644
+index b73202c..fd666c9 100644
 --- a/tests/conftest.py
 +++ b/tests/conftest.py
-@@ -118,9 +118,15 @@ def dev_server(xprocess, request, tmp_path):
+@@ -103,9 +103,15 @@ def dev_server(xprocess, request, tmp_path):
          class Starter(ProcessStarter):
              args = [sys.executable, run_path, name, json.dumps(kwargs)]
              # Extend the existing env, otherwise Windows and CI fails.
@@ -29,6 +29,3 @@ index 4ad1ff23..7200d286 100644
  
              @cached_property
              def pattern(self):
--- 
-2.31.1
-

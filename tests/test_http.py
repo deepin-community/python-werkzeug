@@ -1,4 +1,5 @@
 import base64
+import urllib.parse
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
@@ -9,6 +10,8 @@ import pytest
 from werkzeug import datastructures
 from werkzeug import http
 from werkzeug._internal import _wsgi_encoding_dance
+from werkzeug.datastructures import Authorization
+from werkzeug.datastructures import WWWAuthenticate
 from werkzeug.test import create_environ
 
 
@@ -20,6 +23,10 @@ class TestHTTPUtility:
         assert a.find("ru") == 1
         pytest.raises(ValueError, a.index, "de")
         assert a.to_header() == "en-us,ru;q=0.5"
+
+    def test_accept_parameter_with_space(self):
+        a = http.parse_accept_header('application/x-special; z="a b";q=0.5')
+        assert a['application/x-special; z="a b"'] == 0.5
 
     def test_mime_accept(self):
         a = http.parse_accept_header(
@@ -88,9 +95,17 @@ class TestHTTPUtility:
         hs.add("Foo")
         assert hs.to_header() == 'foo, Bar, "Blah baz", Hehe'
 
-    def test_list_header(self):
-        hl = http.parse_list_header("foo baz, blah")
-        assert hl == ["foo baz", "blah"]
+    @pytest.mark.parametrize(
+        ("value", "expect"),
+        [
+            ("a b", ["a b"]),
+            ("a b, c", ["a b", "c"]),
+            ('a b, "c, d"', ["a b", "c, d"]),
+            ('"a\\"b", c', ['a"b', "c"]),
+        ],
+    )
+    def test_list_header(self, value, expect):
+        assert http.parse_list_header(value) == expect
 
     def test_dict_header(self):
         d = http.parse_dict_header('foo="bar baz", blah=42')
@@ -133,33 +148,30 @@ class TestHTTPUtility:
         assert csp.img_src is None
 
     def test_authorization_header(self):
-        a = http.parse_authorization_header("Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==")
+        a = Authorization.from_header("Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==")
         assert a.type == "basic"
         assert a.username == "Aladdin"
         assert a.password == "open sesame"
 
-        a = http.parse_authorization_header(
-            "Basic 0YDRg9GB0YHQutC40IE60JHRg9C60LLRiw=="
-        )
+        a = Authorization.from_header("Basic 0YDRg9GB0YHQutC40IE60JHRg9C60LLRiw==")
         assert a.type == "basic"
         assert a.username == "русскиЁ"
         assert a.password == "Буквы"
 
-        a = http.parse_authorization_header("Basic 5pmu6YCa6K+dOuS4reaWhw==")
+        a = Authorization.from_header("Basic 5pmu6YCa6K+dOuS4reaWhw==")
         assert a.type == "basic"
         assert a.username == "普通话"
         assert a.password == "中文"
 
-        a = http.parse_authorization_header(
-            '''Digest username="Mufasa",
-            realm="testrealm@host.invalid",
-            nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093",
-            uri="/dir/index.html",
-            qop=auth,
-            nc=00000001,
-            cnonce="0a4f113b",
-            response="6629fae49393a05397450978507c4ef1",
-            opaque="5ccc069c403ebaf9f0171e9517f40e41"'''
+        a = Authorization.from_header(
+            'Digest username="Mufasa",'
+            ' realm="testrealm@host.invalid",'
+            ' nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093",'
+            ' uri="/dir/index.html",'
+            " qop=auth, nc=00000001,"
+            ' cnonce="0a4f113b",'
+            ' response="6629fae49393a05397450978507c4ef1",'
+            ' opaque="5ccc069c403ebaf9f0171e9517f40e41"'
         )
         assert a.type == "digest"
         assert a.username == "Mufasa"
@@ -172,13 +184,13 @@ class TestHTTPUtility:
         assert a.response == "6629fae49393a05397450978507c4ef1"
         assert a.opaque == "5ccc069c403ebaf9f0171e9517f40e41"
 
-        a = http.parse_authorization_header(
-            '''Digest username="Mufasa",
-            realm="testrealm@host.invalid",
-            nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093",
-            uri="/dir/index.html",
-            response="e257afa1414a3340d93d30955171dd0e",
-            opaque="5ccc069c403ebaf9f0171e9517f40e41"'''
+        a = Authorization.from_header(
+            'Digest username="Mufasa",'
+            ' realm="testrealm@host.invalid",'
+            ' nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093",'
+            ' uri="/dir/index.html",'
+            ' response="e257afa1414a3340d93d30955171dd0e",'
+            ' opaque="5ccc069c403ebaf9f0171e9517f40e41"'
         )
         assert a.type == "digest"
         assert a.username == "Mufasa"
@@ -188,41 +200,87 @@ class TestHTTPUtility:
         assert a.response == "e257afa1414a3340d93d30955171dd0e"
         assert a.opaque == "5ccc069c403ebaf9f0171e9517f40e41"
 
-        assert http.parse_authorization_header("") is None
-        assert http.parse_authorization_header(None) is None
-        assert http.parse_authorization_header("foo") is None
+        assert Authorization.from_header("") is None
+        assert Authorization.from_header(None) is None
+        assert Authorization.from_header("foo").type == "foo"
+
+    def test_authorization_token_padding(self):
+        # padded with =
+        token = base64.b64encode(b"This has base64 padding").decode()
+        a = Authorization.from_header(f"Token {token}")
+        assert a.type == "token"
+        assert a.token == token
+
+        # padded with ==
+        token = base64.b64encode(b"This has base64 padding..").decode()
+        a = Authorization.from_header(f"Token {token}")
+        assert a.type == "token"
+        assert a.token == token
+
+    def test_authorization_basic_incorrect_padding(self):
+        assert Authorization.from_header("Basic foo") is None
 
     def test_bad_authorization_header_encoding(self):
         """If the base64 encoded bytes can't be decoded as UTF-8"""
         content = base64.b64encode(b"\xffser:pass").decode()
-        assert http.parse_authorization_header(f"Basic {content}") is None
+        assert Authorization.from_header(f"Basic {content}") is None
+
+    def test_authorization_eq(self):
+        basic1 = Authorization.from_header("Basic QWxhZGRpbjpvcGVuIHNlc2FtZQ==")
+        basic2 = Authorization(
+            "basic", {"username": "Aladdin", "password": "open sesame"}
+        )
+        assert basic1 == basic2
+        bearer1 = Authorization.from_header("Bearer abc")
+        bearer2 = Authorization("bearer", token="abc")
+        assert bearer1 == bearer2
+        assert basic1 != bearer1
+        assert basic1 != object()
 
     def test_www_authenticate_header(self):
-        wa = http.parse_www_authenticate_header('Basic realm="WallyWorld"')
+        wa = WWWAuthenticate.from_header('Basic realm="WallyWorld"')
         assert wa.type == "basic"
         assert wa.realm == "WallyWorld"
         wa.realm = "Foo Bar"
         assert wa.to_header() == 'Basic realm="Foo Bar"'
 
-        wa = http.parse_www_authenticate_header(
-            '''Digest
-            realm="testrealm@host.com",
-            qop="auth,auth-int",
-            nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093",
-            opaque="5ccc069c403ebaf9f0171e9517f40e41"'''
+        wa = WWWAuthenticate.from_header(
+            'Digest realm="testrealm@host.com",'
+            ' qop="auth,auth-int",'
+            ' nonce="dcd98b7102dd2f0e8b11d0f600bfb0c093",'
+            ' opaque="5ccc069c403ebaf9f0171e9517f40e41"'
         )
         assert wa.type == "digest"
         assert wa.realm == "testrealm@host.com"
-        assert "auth" in wa.qop
-        assert "auth-int" in wa.qop
+        assert wa.parameters["qop"] == "auth,auth-int"
         assert wa.nonce == "dcd98b7102dd2f0e8b11d0f600bfb0c093"
         assert wa.opaque == "5ccc069c403ebaf9f0171e9517f40e41"
 
-        wa = http.parse_www_authenticate_header("broken")
-        assert wa.type == "broken"
+        assert WWWAuthenticate.from_header("broken").type == "broken"
+        assert WWWAuthenticate.from_header("") is None
 
-        assert not http.parse_www_authenticate_header("").type
-        assert not http.parse_www_authenticate_header("")
+    def test_www_authenticate_token_padding(self):
+        # padded with =
+        token = base64.b64encode(b"This has base64 padding").decode()
+        a = WWWAuthenticate.from_header(f"Token {token}")
+        assert a.type == "token"
+        assert a.token == token
+
+        # padded with ==
+        token = base64.b64encode(b"This has base64 padding..").decode()
+        a = WWWAuthenticate.from_header(f"Token {token}")
+        assert a.type == "token"
+        assert a.token == token
+
+    def test_www_authenticate_eq(self):
+        basic1 = WWWAuthenticate.from_header("Basic realm=abc")
+        basic2 = WWWAuthenticate("basic", {"realm": "abc"})
+        assert basic1 == basic2
+        token1 = WWWAuthenticate.from_header("Token abc")
+        token2 = WWWAuthenticate("token", token="abc")
+        assert token1 == token2
+        assert basic1 != token1
+        assert basic1 != object()
 
     def test_etags(self):
         assert http.quote_etag("foo") == '"foo"'
@@ -274,68 +332,63 @@ class TestHTTPUtility:
         http.remove_hop_by_hop_headers(headers2)
         assert headers2 == datastructures.Headers([("Foo", "bar")])
 
-    def test_parse_options_header(self):
-        assert http.parse_options_header(None) == ("", {})
-        assert http.parse_options_header("") == ("", {})
-        assert http.parse_options_header(r'something; foo="other\"thing"') == (
-            "something",
-            {"foo": 'other"thing'},
-        )
-        assert http.parse_options_header(r'something; foo="other\"thing"; meh=42') == (
-            "something",
-            {"foo": 'other"thing', "meh": "42"},
-        )
-        assert http.parse_options_header(
-            r'something; foo="other\"thing"; meh=42; bleh'
-        ) == ("something", {"foo": 'other"thing', "meh": "42", "bleh": None})
-        assert http.parse_options_header(
-            'something; foo="other;thing"; meh=42; bleh'
-        ) == ("something", {"foo": "other;thing", "meh": "42", "bleh": None})
-        assert http.parse_options_header('something; foo="otherthing"; meh=; bleh') == (
-            "something",
-            {"foo": "otherthing", "meh": None, "bleh": None},
-        )
-        # Issue #404
-        assert http.parse_options_header(
-            'multipart/form-data; name="foo bar"; filename="bar foo"'
-        ) == ("multipart/form-data", {"name": "foo bar", "filename": "bar foo"})
-        # Examples from RFC
-        assert http.parse_options_header("audio/*; q=0.2, audio/basic") == (
-            "audio/*",
-            {"q": "0.2"},
-        )
+    @pytest.mark.parametrize(
+        ("value", "expect"),
+        [
+            (None, ""),
+            ("", ""),
+            (";a=b", ""),
+            ("v", "v"),
+            ("v;", "v"),
+        ],
+    )
+    def test_parse_options_header_empty(self, value, expect):
+        assert http.parse_options_header(value) == (expect, {})
 
-        assert http.parse_options_header(
-            "text/plain; q=0.5, text/html\n        text/x-dvi; q=0.8, text/x-c"
-        ) == ("text/plain", {"q": "0.5"})
-        # Issue #932
-        assert http.parse_options_header(
-            "form-data; name=\"a_file\"; filename*=UTF-8''"
-            '"%c2%a3%20and%20%e2%82%ac%20rates"'
-        ) == ("form-data", {"name": "a_file", "filename": "\xa3 and \u20ac rates"})
-        assert http.parse_options_header(
-            "form-data; name*=UTF-8''\"%C5%AAn%C4%ADc%C5%8Dde%CC%BD\"; "
-            'filename="some_file.txt"'
-        ) == (
-            "form-data",
-            {"name": "\u016an\u012dc\u014dde\u033d", "filename": "some_file.txt"},
-        )
-
-    def test_parse_options_header_value_with_quotes(self):
-        assert http.parse_options_header(
-            'form-data; name="file"; filename="t\'es\'t.txt"'
-        ) == ("form-data", {"name": "file", "filename": "t'es't.txt"})
-        assert http.parse_options_header(
-            "form-data; name=\"file\"; filename*=UTF-8''\"'🐍'.txt\""
-        ) == ("form-data", {"name": "file", "filename": "'🐍'.txt"})
+    @pytest.mark.parametrize(
+        ("value", "expect"),
+        [
+            ("v;a=b;c=d;", {"a": "b", "c": "d"}),
+            ("v;  ; a=b ; ", {"a": "b"}),
+            ("v;a", {}),
+            ("v;a=", {}),
+            ("v;=b", {}),
+            ('v;a="b"', {"a": "b"}),
+            ("v;a=µ", {}),
+            ('v;a="\';\'";b="µ";', {"a": "';'", "b": "µ"}),
+            ('v;a="b c"', {"a": "b c"}),
+            # HTTP headers use \" for internal "
+            ('v;a="b\\"c";d=e', {"a": 'b"c', "d": "e"}),
+            # HTTP headers use \\ for internal \
+            ('v;a="c:\\\\"', {"a": "c:\\"}),
+            # Invalid trailing slash in quoted part is left as-is.
+            ('v;a="c:\\"', {"a": "c:\\"}),
+            ('v;a="b\\\\\\"c"', {"a": 'b\\"c'}),
+            # multipart form data uses %22 for internal "
+            ('v;a="b%22c"', {"a": 'b"c'}),
+            ("v;a*=b", {"a": "b"}),
+            ("v;a*=ASCII'en'b", {"a": "b"}),
+            ("v;a*=US-ASCII''%62", {"a": "b"}),
+            ("v;a*=UTF-8''%C2%B5", {"a": "µ"}),
+            ("v;a*=US-ASCII''%C2%B5", {"a": "��"}),
+            ("v;a*=BAD''%62", {"a": "%62"}),
+            ("v;a*=UTF-8'''%F0%9F%90%8D'.txt", {"a": "'🐍'.txt"}),
+            ('v;a="🐍.txt"', {"a": "🐍.txt"}),
+            ("v;a*0=b;a*1=c;d=e", {"a": "bc", "d": "e"}),
+            ("v;a*0*=b", {"a": "b"}),
+            ("v;a*0*=UTF-8''b;a*1=c;a*2*=%C2%B5", {"a": "bcµ"}),
+        ],
+    )
+    def test_parse_options_header(self, value, expect) -> None:
+        assert http.parse_options_header(value) == ("v", expect)
 
     def test_parse_options_header_broken_values(self):
         # Issue #995
         assert http.parse_options_header(" ") == ("", {})
-        assert http.parse_options_header(" , ") == ("", {})
+        assert http.parse_options_header(" , ") == (",", {})
         assert http.parse_options_header(" ; ") == ("", {})
-        assert http.parse_options_header(" ,; ") == ("", {})
-        assert http.parse_options_header(" , a ") == ("", {})
+        assert http.parse_options_header(" ,; ") == (",", {})
+        assert http.parse_options_header(" , a ") == (", a", {})
         assert http.parse_options_header(" ; a ") == ("", {})
 
     def test_parse_options_header_case_insensitive(self):
@@ -344,16 +397,12 @@ class TestHTTPUtility:
 
     def test_dump_options_header(self):
         assert http.dump_options_header("foo", {"bar": 42}) == "foo; bar=42"
-        assert http.dump_options_header("foo", {"bar": 42, "fizz": None}) in (
-            "foo; bar=42; fizz",
-            "foo; fizz; bar=42",
-        )
+        assert "fizz" not in http.dump_options_header("foo", {"bar": 42, "fizz": None})
 
     def test_dump_header(self):
         assert http.dump_header([1, 2, 3]) == "1, 2, 3"
-        assert http.dump_header([1, 2, 3], allow_token=False) == '"1", "2", "3"'
-        assert http.dump_header({"foo": "bar"}, allow_token=False) == 'foo="bar"'
         assert http.dump_header({"foo": "bar"}) == "foo=bar"
+        assert http.dump_header({"foo*": "UTF-8''bar"}) == "foo*=UTF-8''bar"
 
     def test_is_resource_modified(self):
         env = create_environ()
@@ -411,7 +460,8 @@ class TestHTTPUtility:
     def test_parse_cookie(self):
         cookies = http.parse_cookie(
             "dismiss-top=6; CP=null*; PHPSESSID=0a539d42abc001cdc762809248d4beed;"
-            'a=42; b="\\";"; ; fo234{=bar;blub=Blah; "__Secure-c"=d'
+            'a=42; b="\\";"; ; fo234{=bar;blub=Blah; "__Secure-c"=d;'
+            "==__Host-eq=bad;__Host-eq=good;"
         )
         assert cookies.to_dict() == {
             "CP": "null*",
@@ -422,6 +472,7 @@ class TestHTTPUtility:
             "fo234{": "bar",
             "blub": "Blah",
             '"__Secure-c"': "d",
+            "__Host-eq": "good",
         }
 
     def test_dump_cookie(self):
@@ -435,7 +486,7 @@ class TestHTTPUtility:
             'foo="bar baz blub"',
         }
         assert http.dump_cookie("key", "xxx/") == "key=xxx/; Path=/"
-        assert http.dump_cookie("key", "xxx=") == "key=xxx=; Path=/"
+        assert http.dump_cookie("key", "xxx=", path=None) == "key=xxx="
 
     def test_bad_cookies(self):
         cookies = http.parse_cookie(
@@ -458,9 +509,9 @@ class TestHTTPUtility:
 
     def test_cookie_quoting(self):
         val = http.dump_cookie("foo", "?foo")
-        assert val == 'foo="?foo"; Path=/'
-        assert http.parse_cookie(val).to_dict() == {"foo": "?foo", "Path": "/"}
-        assert http.parse_cookie(r'foo="foo\054bar"').to_dict(), {"foo": "foo,bar"}
+        assert val == "foo=?foo; Path=/"
+        assert http.parse_cookie(val)["foo"] == "?foo"
+        assert http.parse_cookie(r'foo="foo\054bar"')["foo"] == "foo,bar"
 
     def test_parse_set_cookie_directive(self):
         val = 'foo="?foo"; version="0.1";'
@@ -482,7 +533,7 @@ class TestHTTPUtility:
     def test_cookie_unicode_keys(self):
         # Yes, this is technically against the spec but happens
         val = http.dump_cookie("fö", "fö")
-        assert val == _wsgi_encoding_dance('fö="f\\303\\266"; Path=/', "utf-8")
+        assert val == _wsgi_encoding_dance('fö="f\\303\\266"; Path=/')
         cookies = http.parse_cookie(val)
         assert cookies["fö"] == "fö"
 
@@ -495,38 +546,30 @@ class TestHTTPUtility:
         val = http.dump_cookie("foo", "bar", domain="\N{SNOWMAN}.com")
         assert val == "foo=bar; Domain=xn--n3h.com; Path=/"
 
-        val = http.dump_cookie("foo", "bar", domain=".\N{SNOWMAN}.com")
-        assert val == "foo=bar; Domain=.xn--n3h.com; Path=/"
+        val = http.dump_cookie("foo", "bar", domain="foo.com")
+        assert val == "foo=bar; Domain=foo.com; Path=/"
 
-        val = http.dump_cookie("foo", "bar", domain=".foo.com")
-        assert val == "foo=bar; Domain=.foo.com; Path=/"
-
-    def test_cookie_maxsize(self, recwarn):
+    def test_cookie_maxsize(self):
         val = http.dump_cookie("foo", "bar" * 1360 + "b")
-        assert len(recwarn) == 0
         assert len(val) == 4093
 
-        http.dump_cookie("foo", "bar" * 1360 + "ba")
-        assert len(recwarn) == 1
-        w = recwarn.pop()
-        assert "cookie is too large" in str(w.message)
+        with pytest.warns(UserWarning, match="cookie is too large"):
+            http.dump_cookie("foo", "bar" * 1360 + "ba")
 
-        http.dump_cookie("foo", b"w" * 502, max_size=512)
-        assert len(recwarn) == 1
-        w = recwarn.pop()
-        assert "the limit is 512 bytes" in str(w.message)
+        with pytest.warns(UserWarning, match="the limit is 512 bytes"):
+            http.dump_cookie("foo", "w" * 501, max_size=512)
 
     @pytest.mark.parametrize(
         ("samesite", "expected"),
         (
-            ("strict", "foo=bar; Path=/; SameSite=Strict"),
-            ("lax", "foo=bar; Path=/; SameSite=Lax"),
-            ("none", "foo=bar; Path=/; SameSite=None"),
-            (None, "foo=bar; Path=/"),
+            ("strict", "foo=bar; SameSite=Strict"),
+            ("lax", "foo=bar; SameSite=Lax"),
+            ("none", "foo=bar; SameSite=None"),
+            (None, "foo=bar"),
         ),
     )
     def test_cookie_samesite_attribute(self, samesite, expected):
-        value = http.dump_cookie("foo", "bar", samesite=samesite)
+        value = http.dump_cookie("foo", "bar", samesite=samesite, path=None)
         assert value == expected
 
     def test_cookie_samesite_invalid(self):
@@ -619,6 +662,9 @@ class TestRange:
         rv = http.parse_content_range_header("bytes 0-98/*asdfsa")
         assert rv is None
 
+        rv = http.parse_content_range_header("bytes */-1")
+        assert rv is None
+
         rv = http.parse_content_range_header("bytes 0-99/100")
         assert rv.to_header() == "bytes 0-99/100"
         rv.start = None
@@ -656,7 +702,7 @@ class TestRegression:
     ],
 )
 def test_authorization_to_header(value: str) -> None:
-    parsed = http.parse_authorization_header(value)
+    parsed = Authorization.from_header(value)
     assert parsed is not None
     assert parsed.to_header() == value
 
@@ -715,3 +761,32 @@ def test_parse_date(value, expect):
 )
 def test_http_date(value, expect):
     assert http.http_date(value) == expect
+
+
+@pytest.mark.parametrize("value", [".5", "+0.5", "0.5_1", "🯰.🯵"])
+def test_accept_invalid_float(value):
+    quoted = urllib.parse.quote(value)
+
+    if quoted == value:
+        q = f"q={value}"
+    else:
+        q = f"q*=UTF-8''{value}"
+
+    a = http.parse_accept_header(f"en,jp;{q}")
+    assert list(a.values()) == ["en"]
+
+
+def test_accept_valid_int_one_zero():
+    assert http.parse_accept_header("en;q=1") == http.parse_accept_header("en;q=1.0")
+    assert http.parse_accept_header("en;q=0") == http.parse_accept_header("en;q=0.0")
+    assert http.parse_accept_header("en;q=5") == http.parse_accept_header("en;q=5.0")
+
+
+@pytest.mark.parametrize("value", ["🯱🯲🯳", "+1-", "1-1_23"])
+def test_range_invalid_int(value):
+    assert http.parse_range_header(value) is None
+
+
+@pytest.mark.parametrize("value", ["*/🯱🯲🯳", "1-+2/3", "1_23-125/*"])
+def test_content_range_invalid_int(value):
+    assert http.parse_content_range_header(f"bytes {value}") is None

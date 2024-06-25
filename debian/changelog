@@ -1,3 +1,99 @@
+python-werkzeug (3.0.3-1) unstable; urgency=medium
+
+  * Team upload
+  * [32a577e] New upstream version 3.0.3
+    Fixes CVE-2024-34069
+    (Closes: #1070711)
+  * [9f49688] Rebuild patch queue drom patch-queue branch
+    Adjusted patch:
+    docs-Use-intersphix-with-Debian-packages.patch
+  * [98b2263] d/copyright: Update year data
+  * [730be75] d/control: Drop python3-sphinx-issues from B-D
+  * [a4bd5f5] d/control: Bump Standards-Version to 4.7.0
+    No further changes needed.
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Thu, 09 May 2024 12:58:49 +0200
+
+python-werkzeug (3.0.2-1) unstable; urgency=medium
+
+  * Team upload
+
+  [ Ondřej Nový ]
+  * [44b776b] Remove myself from Uploaders.
+
+  [ Carsten Schoenert ]
+  * [ae61a23] New upstream version 3.0.2
+  * [f5bd2de] Rebuild patch queue drom patch-queue branch
+    Dropped patch:
+    Fix-test-failure-with-Pytest-8.0.patch
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Fri, 22 Mar 2024 19:43:39 +0100
+
+python-werkzeug (3.0.1-3) unstable; urgency=medium
+
+  * Team upload
+  * Rebuild patch queue drom patch-queue branch
+    Added patch:
+    Fix-test-failure-with-Pytest-8.0.patch
+    (Closes: 1063983)
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Sat, 24 Feb 2024 08:29:01 +0100
+
+python-werkzeug (3.0.1-2) unstable; urgency=medium
+
+  * Team upload
+
+  [ Julian Gilbey ]
+  * Add python3-markupsafe Build-Depends
+
+  [ Carsten Schoenert ]
+  * Upload to unstable
+    Fixes CVE-2023-46136
+    (Closes: #1054553, #1058244)
+
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Fri, 09 Feb 2024 19:32:22 +0100
+
+python-werkzeug (3.0.1-1) experimental; urgency=medium
+
+  * Team upload
+  * [b97bb12] d/gbp.conf: Add some basic defaults for git-buildpackage
+  * [9ba65b6] d/watch: Update and move to version 4
+  * [8e91a92] d/gbp.conf: Adjust to debian/experimental
+  * [1d55463] d/copyright: Drop Files-Excluded, not needed any more
+  * [cffc6d3] New upstream version 3.0.1
+    Fixes CVE-2023-46136
+    (Closes: #1054553, #1058244)
+  * [80a2855] Rebuild patch queue drom patch-queue branch
+    Added patches:
+    docs-Use-intersphix-with-Debian-packages.patch
+    Renamed patch:
+    preserve-any-existing-PYTHONPATH-in-tests.patch
+     -> tests-Preserve-any-existing-PYTHONPATH-in-tests.patch
+    Dropped patches (included upstream):
+    0003-don-t-strip-leading-when-parsing-cookie.patch
+    0004-limit-the-maximum-number-of-multipart-form-parts.patch
+    Dropped patch (not needed any more):
+    remove-test_exclude_patterns-test.patch
+  * [385989d] d/control: Bump Standards-Version to 4.6.2
+    No further changes needed.
+  * [3e6cbd1] d/control: Update B-D as upstream has moved to flit
+  * [80afaf5] d/control: Set nodoc build profile for python3-doc
+  * [7468a1a] d/rules: Drop --with option in default target
+  * [ca345a4] d/rules: Improve build of Sphinx based documentation
+  * [ed1f0ae] d/rules: Remove file ICON_LICENSE.md in bin package
+  * [98e1776] d/rules: Add removal of .mypy_cache to dh_clean
+  * [9edc6e8] autopkgtest: Use more specific test dependencies
+  * [2f48efc] d/copyright: Update content and copyright holders
+  * [d3cbf83] d/u/metadata: Small updates
+  * [daeb503] d/control: Reflect GitHub project website as Homepage
+  * [e6c630c] d/python3-werkzeug.links: Remove sequencer, it's obsolet
+  * [1db0b73] d/p-w-d.links: Remove linking to obsolet packages
+  * [64bae1b] d/README.source: Adding a README file about source specifics
+  * [774528e] d/salsa-ci.yml: Adding trigger file for Salsa CI
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Wed, 20 Dec 2023 19:22:33 +0100
+
 python-werkzeug (2.2.2-3) unstable; urgency=medium
 
   [ Robin Gustafsson ]

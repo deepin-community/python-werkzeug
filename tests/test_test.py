@@ -10,13 +10,13 @@ from werkzeug.datastructures import FileStorage
 from werkzeug.datastructures import Headers
 from werkzeug.datastructures import MultiDict
 from werkzeug.formparser import parse_form_data
-from werkzeug.http import parse_authorization_header
 from werkzeug.test import Client
 from werkzeug.test import ClientRedirectError
 from werkzeug.test import create_environ
 from werkzeug.test import EnvironBuilder
 from werkzeug.test import run_wsgi_app
 from werkzeug.test import stream_encode_multipart
+from werkzeug.test import TestResponse
 from werkzeug.utils import redirect
 from werkzeug.wrappers import Request
 from werkzeug.wrappers import Response
@@ -74,7 +74,7 @@ def multi_value_post_app(environ, start_response):
 
 def test_cookie_forging():
     c = Client(cookie_app)
-    c.set_cookie("localhost", "foo", "bar")
+    c.set_cookie("foo", "bar")
     response = c.open()
     assert response.text == "foo=bar"
 
@@ -88,7 +88,7 @@ def test_set_cookie_app():
 def test_cookiejar_stores_cookie():
     c = Client(cookie_app)
     c.open()
-    assert "test" in c.cookie_jar._cookies["localhost.local"]["/"]
+    assert c.get_cookie("test") is not None
 
 
 def test_no_initial_cookie():
@@ -116,6 +116,25 @@ def test_cookie_for_different_path():
     c.open("/path1")
     response = c.open("/path2")
     assert response.text == "test=test"
+
+
+def test_cookie_default_path() -> None:
+    """When no path is set for a cookie, the default uses everything up to but not
+    including the first slash.
+    """
+
+    @Request.application
+    def app(request: Request) -> Response:
+        r = Response()
+        r.set_cookie("k", "v", path=None)
+        return r
+
+    c = Client(app)
+    c.get("/nested/leaf")
+    assert c.get_cookie("k") is None
+    assert c.get_cookie("k", path="/nested") is not None
+    c.get("/nested/dir/")
+    assert c.get_cookie("k", path="/nested/dir") is not None
 
 
 def test_environ_builder_basics():
@@ -284,9 +303,8 @@ def test_environ_builder_content_type():
 def test_basic_auth():
     builder = EnvironBuilder(auth=("username", "password"))
     request = builder.get_request()
-    auth = parse_authorization_header(request.headers["Authorization"])
-    assert auth.username == "username"
-    assert auth.password == "password"
+    assert request.authorization.username == "username"
+    assert request.authorization.password == "password"
 
 
 def test_auth_object():
@@ -338,6 +356,23 @@ def test_environ_builder_unicode_file_mix():
         assert files["f"].read() == rb"\N{SNOWMAN}"
         stream.close()
         files["f"].close()
+
+
+def test_environ_builder_empty_file():
+    f = FileStorage(BytesIO(rb""), "empty.txt")
+    d = MultiDict(dict(f=f, s=""))
+    stream, length, boundary = stream_encode_multipart(d)
+    _, form, files = parse_form_data(
+        {
+            "wsgi.input": stream,
+            "CONTENT_LENGTH": str(length),
+            "CONTENT_TYPE": f'multipart/form-data; boundary="{boundary}"',
+        }
+    )
+    assert form["s"] == ""
+    assert files["f"].read() == rb""
+    stream.close()
+    files["f"].close()
 
 
 def test_create_environ():
@@ -392,7 +427,7 @@ def test_file_closing():
 
     class SpecialInput:
         def read(self, size):
-            return ""
+            return b""
 
         def close(self):
             closed.append(self)
@@ -752,8 +787,8 @@ def test_multiple_cookies():
     @Request.application
     def test_app(request):
         response = Response(repr(sorted(request.cookies.items())))
-        response.set_cookie("test1", b"foo")
-        response.set_cookie("test2", b"bar")
+        response.set_cookie("test1", "foo")
+        response.set_cookie("test2", "bar")
         return response
 
     client = Client(test_app)
@@ -869,3 +904,24 @@ def test_no_content_type_header_addition():
     c = Client(no_response_headers_app)
     response = c.open()
     assert response.headers == Headers([("Content-Length", "8")])
+
+
+def test_client_response_wrapper():
+    class CustomResponse(Response):
+        pass
+
+    class CustomTestResponse(TestResponse, Response):
+        pass
+
+    c1 = Client(Response(), CustomResponse)
+    r1 = c1.open()
+
+    assert isinstance(r1, CustomResponse)
+    assert type(r1) is not CustomResponse  # Got subclassed
+    assert issubclass(type(r1), CustomResponse)
+
+    c2 = Client(Response(), CustomTestResponse)
+    r2 = c2.open()
+
+    assert isinstance(r2, CustomTestResponse)
+    assert type(r2) is CustomTestResponse  # Did not get subclassed
