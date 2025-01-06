@@ -1,3 +1,36 @@
+python-werkzeug (3.1.3-2) unstable; urgency=medium
+
+  * Team upload
+  * Upload to unstable
+    Fixes CVE-2024-49767
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Mon, 25 Nov 2024 17:32:31 +0100
+
+python-werkzeug (3.1.3-1) experimental; urgency=medium
+
+  * Team upload
+  * [a3a30e6] d/control: Sort the binary packages alphabetical
+  * [f09c7a3] New upstream version 3.1.3
+    Fixes CVE-2024-49767
+    (Closes: #1086062)
+  * [8afd1df] Rebuild patch queue from patch-queue branch
+    Dropped patch (included upstream):
+    tests-Preserve-any-existing-PYTHONPATH-in-tests.patch
+  * [edf459d] d/rules: Add variable PYBUILD_TEST_ARGS
+    We need to ignore some tests at build time now.
+  * [1346e45] d/rules: Drop -D option from SPHINXOPTS
+  * [804f129] d/control: python3-werkzeug - Drop dep on jibjs-jquery
+    (Closes: #1065427)
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Sun, 24 Nov 2024 08:50:18 +0100
+
+python-werkzeug (3.0.4-1) unstable; urgency=medium
+
+  * Team upload
+  * [85ea57f] New upstream version 3.0.4
+
+ -- Carsten Schoenert <c.schoenert@t-online.de>  Thu, 29 Aug 2024 17:44:25 +0200
+
 python-werkzeug (3.0.3-1) unstable; urgency=medium
 
   * Team upload
