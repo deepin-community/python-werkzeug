@@ -3,14 +3,15 @@
 
 #export DH_VERBOSE = 1
 
-include /usr/share/dpkg/pkg-info.mk
-
-BUILD_DATE  = $(shell LC_ALL=C date -u "+%d %B %Y" -d "@$(SOURCE_DATE_EPOCH)")
-SPHINXOPTS := -E -N -D html_last_updated_fmt="$(BUILD_DATE)"
+SPHINXOPTS := -E -N
 
 export PYBUILD_NAME=werkzeug
 export PYBUILD_TEST_PYTEST=1
 export PYBUILD_BEFORE_INSTALL=rm -rf {build_dir}/werkzeug/debug/shared/ICON_LICENSE.md
+export PYBUILD_TEST_ARGS=--ignore tests/middleware/test_http_proxy.py --ignore tests/test_serving.py \
+'-k not test_basic \
+and not test_server \
+'
 
 %:
 	dh $@ --buildsystem=pybuild

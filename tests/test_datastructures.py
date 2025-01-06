@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import io
 import pickle
 import tempfile
@@ -10,6 +12,8 @@ import pytest
 
 from werkzeug import datastructures as ds
 from werkzeug import http
+from werkzeug.datastructures.structures import _ImmutableOrderedMultiDict
+from werkzeug.datastructures.structures import _OrderedMultiDict
 from werkzeug.exceptions import BadRequestKeyError
 
 
@@ -42,7 +46,7 @@ class TestNativeItermethods:
 
 
 class _MutableMultiDictTests:
-    storage_class: t.Type["ds.MultiDict"]
+    storage_class: type[ds.MultiDict]
 
     def test_pickle(self):
         cls = self.storage_class
@@ -257,9 +261,20 @@ class _MutableMultiDictTests:
         md.setlist("foo", [1, 2])
         assert md.getlist("foo") == [1, 2]
 
+    def test_or(self) -> None:
+        a = self.storage_class({"x": 1})
+        b = a | {"y": 2}
+        assert isinstance(b, self.storage_class)
+        assert "x" in b and "y" in b
+
+    def test_ior(self) -> None:
+        a = self.storage_class({"x": 1})
+        a |= {"y": 2}
+        assert "x" in a and "y" in a
+
 
 class _ImmutableDictTests:
-    storage_class: t.Type[dict]
+    storage_class: type[dict]
 
     def test_follows_dict_interface(self):
         cls = self.storage_class
@@ -304,6 +319,17 @@ class _ImmutableDictTests:
         assert immutable in x
         assert immutable2 in x
 
+    def test_or(self) -> None:
+        a = self.storage_class({"x": 1})
+        b = a | {"y": 2}
+        assert "x" in b and "y" in b
+
+    def test_ior(self) -> None:
+        a = self.storage_class({"x": 1})
+
+        with pytest.raises(TypeError):
+            a |= {"y": 2}
+
 
 class TestImmutableTypeConversionDict(_ImmutableDictTests):
     storage_class = ds.ImmutableTypeConversionDict
@@ -334,8 +360,9 @@ class TestImmutableDict(_ImmutableDictTests):
     storage_class = ds.ImmutableDict
 
 
+@pytest.mark.filterwarnings("ignore:'OrderedMultiDict':DeprecationWarning")
 class TestImmutableOrderedMultiDict(_ImmutableDictTests):
-    storage_class = ds.ImmutableOrderedMultiDict
+    storage_class = _ImmutableOrderedMultiDict
 
     def test_ordered_multidict_is_hashable(self):
         a = self.storage_class([("a", 1), ("b", 1), ("a", 2)])
@@ -413,8 +440,9 @@ class TestMultiDict(_MutableMultiDictTests):
             md["empty"]
 
 
+@pytest.mark.filterwarnings("ignore:'OrderedMultiDict':DeprecationWarning")
 class TestOrderedMultiDict(_MutableMultiDictTests):
-    storage_class = ds.OrderedMultiDict
+    storage_class = _OrderedMultiDict
 
     def test_ordered_interface(self):
         cls = self.storage_class
@@ -796,6 +824,17 @@ class TestHeaders:
 
         assert h1 == h2
 
+    def test_or(self) -> None:
+        a = ds.Headers({"x": 1})
+        b = a | {"y": 2}
+        assert isinstance(b, ds.Headers)
+        assert "x" in b and "y" in b
+
+    def test_ior(self) -> None:
+        a = ds.Headers({"x": 1})
+        a |= {"y": 2}
+        assert "x" in a and "y" in a
+
 
 class TestEnvironHeaders:
     storage_class = ds.EnvironHeaders
@@ -836,6 +875,22 @@ class TestEnvironHeaders:
         headers = self.storage_class({"HTTP_FOO": "\xe2\x9c\x93"})
         assert headers["Foo"] == "\xe2\x9c\x93"
         assert next(iter(headers)) == ("Foo", "\xe2\x9c\x93")
+
+    def test_or(self) -> None:
+        headers = ds.EnvironHeaders({"x": "1"})
+
+        with pytest.raises(TypeError):
+            headers | {"y": "2"}
+
+    def test_ior(self) -> None:
+        headers = ds.EnvironHeaders({})
+
+        with pytest.raises(TypeError):
+            headers |= {"y": "2"}
+
+    def test_str(self) -> None:
+        headers = ds.EnvironHeaders({"CONTENT_LENGTH": "50", "HTTP_HOST": "test"})
+        assert str(headers) == "Content-Length: 50\r\nHost: test\r\n\r\n"
 
 
 class TestHeaderSet:
@@ -924,7 +979,7 @@ class TestCallbackDict:
         assert_calls, func = make_call_asserter()
         initial = {"a": "foo", "b": "bar"}
         dct = self.storage_class(initial=initial, on_update=func)
-        with assert_calls(8, "callback not triggered by write method"):
+        with assert_calls(9, "callback not triggered by write method"):
             # always-write methods
             dct["z"] = 123
             dct["z"] = 123  # must trigger again
@@ -934,6 +989,7 @@ class TestCallbackDict:
             dct.popitem()
             dct.update([])
             dct.clear()
+            dct |= {}
         with assert_calls(0, "callback triggered by failed del"):
             pytest.raises(KeyError, lambda: dct.__delitem__("x"))
         with assert_calls(0, "callback triggered by failed pop"):
@@ -951,7 +1007,39 @@ class TestCacheControl:
         cc.no_cache = None
         assert cc.no_cache is None
         cc.no_cache = False
-        assert cc.no_cache is False
+        assert cc.no_cache is None
+
+    def test_no_transform(self):
+        cc = ds.RequestCacheControl([("no-transform", None)])
+        assert cc.no_transform is True
+        cc = ds.RequestCacheControl()
+        assert cc.no_transform is False
+
+    def test_min_fresh(self):
+        cc = ds.RequestCacheControl([("min-fresh", "0")])
+        assert cc.min_fresh == 0
+        cc = ds.RequestCacheControl([("min-fresh", None)])
+        assert cc.min_fresh is None
+        cc = ds.RequestCacheControl()
+        assert cc.min_fresh is None
+
+    def test_must_understand(self):
+        cc = ds.ResponseCacheControl([("must-understand", None)])
+        assert cc.must_understand is True
+        cc = ds.ResponseCacheControl()
+        assert cc.must_understand is False
+
+    def test_stale_while_revalidate(self):
+        cc = ds.ResponseCacheControl([("stale-while-revalidate", "1")])
+        assert cc.stale_while_revalidate == 1
+        cc = ds.ResponseCacheControl()
+        assert cc.stale_while_revalidate is None
+
+    def test_stale_if_error(self):
+        cc = ds.ResponseCacheControl([("stale-if-error", "1")])
+        assert cc.stale_if_error == 1
+        cc = ds.ResponseCacheControl()
+        assert cc.stale_while_revalidate is None
 
 
 class TestContentSecurityPolicy:
@@ -1195,3 +1283,15 @@ def test_range_to_header(ranges):
 def test_range_validates_ranges(ranges):
     with pytest.raises(ValueError):
         ds.Range("bytes", ranges)
+
+
+@pytest.mark.parametrize(
+    ("value", "expect"),
+    [
+        ({"a": "ab"}, [("a", "ab")]),
+        ({"a": ["a", "b"]}, [("a", "a"), ("a", "b")]),
+        ({"a": b"ab"}, [("a", b"ab")]),
+    ],
+)
+def test_iter_multi_data(value: t.Any, expect: list[tuple[t.Any, t.Any]]) -> None:
+    assert list(ds.iter_multi_items(value)) == expect

@@ -30,10 +30,24 @@ Vcs-Browser: https://salsa.debian.org/python-team/packages/python-werkzeug
 Testsuite: autopkgtest-pkg-python
 Rules-Requires-Root: no
 
+Package: python-werkzeug-doc
+Section: doc
+Architecture: all
+Depends:
+ ${misc:Depends},
+ ${sphinxdoc:Depends},
+Multi-Arch: foreign
+Description: Documentation for the werkzeug Python library (docs)
+ Werkzeug is a lightweight library for interfacing with WSGI. It features
+ request and response objects, an interactive debugging system and a powerful
+ URI dispatcher. Combine with your choice of third party libraries and
+ middleware to easily create a custom application framework.
+ .
+ This package provides the Sphinx generated documentation for Werkzeug.
+
 Package: python3-werkzeug
 Architecture: all
 Depends:
- libjs-jquery,
  ${misc:Depends},
  ${python3:Depends},
 Recommends:
@@ -45,7 +59,7 @@ Suggests:
  python3-lxml,
  python3-pkg-resources,
  python3-watchdog,
-Description: collection of utilities for WSGI applications (Python 3.x)
+Description: Collection of utilities for WSGI applications (Python 3.x)
  The Web Server Gateway Interface (WSGI) is a standard interface between web
  server software and web applications written in Python.
  .
@@ -55,18 +69,3 @@ Description: collection of utilities for WSGI applications (Python 3.x)
  middleware to easily create a custom application framework.
  .
  This package contains the Python 3.x module.
-
-Package: python-werkzeug-doc
-Section: doc
-Architecture: all
-Depends:
- ${misc:Depends},
- ${sphinxdoc:Depends},
-Multi-Arch: foreign
-Description: documentation for the werkzeug Python library (docs)
- Werkzeug is a lightweight library for interfacing with WSGI. It features
- request and response objects, an interactive debugging system and a powerful
- URI dispatcher. Combine with your choice of third party libraries and
- middleware to easily create a custom application framework.
- .
- This package provides the Sphinx generated documentation for Werkzeug.

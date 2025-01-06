@@ -1,5 +1,129 @@
 .. currentmodule:: werkzeug
 
+Version 3.1.3
+-------------
+
+Released 2024-11-08
+
+-   Initial data passed to ``MultiDict`` and similar interfaces only accepts
+    ``list``, ``tuple``, or ``set`` when passing multiple values. It had been
+    changed to accept any ``Collection``, but this matched types that should be
+    treated as single values, such as ``bytes``. :issue:`2994`
+-   When the ``Host`` header is not set and ``Request.host`` falls back to the
+    WSGI ``SERVER_NAME`` value, if that value is an IPv6 address it is wrapped
+    in ``[]`` to match the ``Host`` header. :issue:`2993`
+
+
+Version 3.1.2
+-------------
+
+Released 2024-11-04
+
+-   Improve type annotation for ``TypeConversionDict.get`` to allow the ``type``
+    parameter to be a callable. :issue:`2988`
+-   ``Headers`` does not inherit from ``MutableMapping``, as it is does not
+    exactly match that interface. :issue:`2989`
+
+
+Version 3.1.1
+-------------
+
+Released 2024-11-01
+
+-   Fix an issue that caused ``str(Request.headers)`` to always appear empty.
+    :issue:`2985`
+
+
+Version 3.1.0
+-------------
+
+Released 2024-10-31
+
+-   Drop support for Python 3.8. :pr:`2966`
+-   Remove previously deprecated code. :pr:`2967`
+-   ``Request.max_form_memory_size`` defaults to 500kB instead of unlimited.
+    Non-file form fields over this size will cause a ``RequestEntityTooLarge``
+    error. :issue:`2964`
+-   ``OrderedMultiDict`` and ``ImmutableOrderedMultiDict`` are deprecated.
+    Use ``MultiDict`` and ``ImmutableMultiDict`` instead. :issue:`2968`
+-   Behavior of properties on ``request.cache_control`` and
+    ``response.cache_control`` has been significantly adjusted.
+
+    -   Dict values are always ``str | None``. Setting properties will convert
+        the value to a string. Setting a property to ``False`` is equivalent to
+        setting it to ``None``. Getting typed properties will return ``None`` if
+        conversion raises ``ValueError``, rather than the string. :issue:`2980`
+    -   ``max_age`` is ``None`` if present without a value, rather than ``-1``.
+        :issue:`2980`
+    -   ``no_cache`` is a boolean for requests, it is ``True`` instead of
+        ``"*"`` when present. It remains a string for responses. :issue:`2980`
+    -   ``max_stale`` is ``True`` if present without a value, rather
+        than ``"*"``. :issue:`2980`
+    -   ``no_transform`` is a boolean. Previously it was mistakenly always
+        ``None``. :issue:`2881`
+    -   ``min_fresh`` is ``None`` if present without a value, rather than
+        ``"*"``. :issue:`2881`
+    -   ``private`` is ``True`` if present without a value, rather than ``"*"``.
+        :issue:`2980`
+    -   Added the ``must_understand`` property. :issue:`2881`
+    -   Added the ``stale_while_revalidate``, and ``stale_if_error``
+        properties. :issue:`2948`
+    -   Type annotations more accurately reflect the values. :issue:`2881`
+
+-   Support Cookie CHIPS (Partitioned Cookies). :issue:`2797`
+-   Add 421 ``MisdirectedRequest`` HTTP exception. :issue:`2850`
+-   Increase default work factor for PBKDF2 to 1,000,000 iterations.
+    :issue:`2969`
+-   Inline annotations for ``datastructures``, removing stub files.
+    :issue:`2970`
+-   ``MultiDict.getlist`` catches ``TypeError`` in addition to ``ValueError``
+    when doing type conversion. :issue:`2976`
+-   Implement ``|`` and ``|=`` operators for ``MultiDict``, ``Headers``, and
+    ``CallbackDict``, and disallow ``|=`` on immutable types. :issue:`2977`
+
+
+Version 3.0.6
+-------------
+
+Released 2024-10-25
+
+-   Fix how ``max_form_memory_size`` is applied when parsing large non-file
+    fields. :ghsa:`q34m-jh98-gwm2`
+-   ``safe_join`` catches certain paths on Windows that were not caught by
+    ``ntpath.isabs`` on Python < 3.11. :ghsa:`f9vj-2wh5-fj8j`
+
+
+Version 3.0.5
+-------------
+
+Released 2024-10-24
+
+-   The Watchdog reloader ignores file closed no write events. :issue:`2945`
+-   Logging works with client addresses containing an IPv6 scope :issue:`2952`
+-   Ignore invalid authorization parameters. :issue:`2955`
+-   Improve type annotation fore ``SharedDataMiddleware``. :issue:`2958`
+-   Compatibility with Python 3.13 when generating debugger pin and the current
+    UID does not have an associated name. :issue:`2957`
+
+
+Version 3.0.4
+-------------
+
+Released 2024-08-21
+
+-   Restore behavior where parsing `multipart/x-www-form-urlencoded` data with
+    invalid UTF-8 bytes in the body results in no form data parsed rather than a
+    413 error. :issue:`2930`
+-   Improve ``parse_options_header`` performance when parsing unterminated
+    quoted string values. :issue:`2904`
+-   Debugger pin auth is synchronized across threads/processes when tracking
+    failed entries. :issue:`2916`
+-   Dev server handles unexpected `SSLEOFError` due to issue in Python < 3.13.
+    :issue:`2926`
+-   Debugger pin auth works when the URL already contains a query string.
+    :issue:`2918`
+
+
 Version 3.0.3
 -------------
 
@@ -17,6 +141,7 @@ Released 2024-05-05
     URIs to be passed on without encoding. :issue:`2828`
 -   Type annotation for ``Rule.endpoint`` and other uses of ``endpoint`` is
     ``Any``. :issue:`2836`
+-   Make reloader more robust when ``""`` is in ``sys.path``. :pr:`2823`
 
 
 Version 3.0.2
